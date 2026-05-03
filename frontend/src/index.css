@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 36 33% 96%;
+    --foreground: 25 25% 18%;
+
+    --card: 38 35% 98%;
+    --card-foreground: 25 25% 18%;
+
+    --popover: 38 35% 98%;
+    --popover-foreground: 25 25% 18%;
+
+    --primary: 24 38% 42%;
+    --primary-foreground: 40 30% 96%;
+
+    --secondary: 32 30% 88%;
+    --secondary-foreground: 25 25% 18%;
+
+    --muted: 35 25% 91%;
+    --muted-foreground: 25 15% 50%;
+
+    --accent: 16 45% 58%;
+    --accent-foreground: 40 30% 96%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 20% 85%;
+    --input: 30 20% 85%;
+    --ring: 24 38% 42%;
+
+    --radius: 0.75rem;
+
+    --letter-bg: 40 40% 94%;
+    --letter-line: 30 15% 82%;
+    --emotion-warm: 15 60% 55%;
+    --emotion-calm: 200 30% 55%;
+    --emotion-joy: 45 70% 55%;
+    --emotion-sad: 220 25% 50%;
+    --emotion-anxious: 30 50% 50%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Pretendard', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Nanum Myeongjo', serif;
+  }
+}
+
+@layer utilities {
+  .font-letter {
+    font-family: 'Nanum Myeongjo', serif;
+  }
+  .font-body {
+    font-family: 'Pretendard', sans-serif;
+  }
+  .letter-paper {
+    background-color: hsl(var(--letter-bg));
+    background-image: repeating-linear-gradient(
+      transparent,
+      transparent 31px,
+      hsl(var(--letter-line)) 31px,
+      hsl(var(--letter-line)) 32px
+    );
+    background-position-y: 8px;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes envelope-open {
+  0% { transform: rotateX(0deg); }
+  100% { transform: rotateX(-180deg); }
+}
