@@ -2,9 +2,13 @@ import json
 from ai_analysis import analyze_text
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+
 import sqlite3
 
 app = Flask(__name__)
+CORS(app)
+
 DB_NAME = "letters.db"
 
 
@@ -80,7 +84,7 @@ def save_letter():
         json.dumps(analysis["embedding"]),
         analysis["emotion_label"],
         analysis["emotion_score"],
-        json.dumps(anaysis["traits"])
+        json.dumps(analysis["traits"], ensure_ascii=False)
     ))
 
     conn.commit()
