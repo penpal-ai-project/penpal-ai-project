@@ -4,6 +4,7 @@ import { Send, Sparkles } from "lucide-react";
 import EmotionBadge from "@/components/EmotionBadge";
 import LetterPaperSelector, { getPaperClasses, type PaperStyle } from "@/components/LetterPaperSelector";
 import AIWritingAssistant from "@/components/AIWritingAssistant";
+import { saveLetter } from "../api";
 
 const WriteLetter = () => {
   const navigate = useNavigate();
@@ -13,10 +14,25 @@ const WriteLetter = () => {
 
   const paperClasses = getPaperClasses(paperStyle);
 
-  const handleSubmit = () => {
-    if (content.trim().length < 10) return;
-    navigate("/matching", { state: { content, paperStyle } });
-  };
+const handleSubmit = async () => {
+  if (content.trim().length < 10) return;
+
+  try {
+    await saveLetter(1, 2, content);
+
+    alert("편지가 저장되었습니다.");
+
+    navigate("/matching", {
+      state: {
+        content,
+        paperStyle,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    alert("편지 저장에 실패했습니다.");
+  }
+};
 
   return (
     <div className="min-h-screen pt-24 pb-12">
@@ -59,7 +75,7 @@ const WriteLetter = () => {
 
         {/* AI analysis hint */}
         <div className="flex items-start gap-3 bg-card rounded-xl p-4 border border-border mb-8">
-          <Sparkles className="w-5 h-5ent mt-0.5 shrink-0" />
+          <Sparkles className="w-5 h-5 mt-0.5 shrink-0" />
           <div>
             <p className="font-body text-sm font-medium text-foreground mb-1">AI 감정 분석 & 자동 매칭</p>
             <p className="font-body text-xs text-muted-foreground">
