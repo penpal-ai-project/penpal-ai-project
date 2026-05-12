@@ -1,11 +1,11 @@
-from create_embedding import get_embedding
-from emotion_model import analyze_emotion
+from create_embedding import create_embedding
+from emotion_model import extract_emotion
 from trait_analysis import analyze_traits
 
 
 def analyze_text(text):
-    embedding = get_embedding(text)
-    emotion_result = analyze_emotion(text)
+    embedding = create_embedding(text)
+    emotion_result = extract_emotion(text)
     traits = analyze_traits(text, top_k=12)
 
     return {
