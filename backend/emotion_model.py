@@ -1,25 +1,27 @@
 from transformers import pipeline
 import torch
 
-# 감정 분석 모델 로드
-# 서버가 시작될 때 한 번만 로드됨
-emotion_classifier = pipeline(
+print("Torch version:", torch.__version__)
+print("GPU 사용 가능:", torch.cuda.is_available())
+
+emotion_pipe = pipeline(
     "text-classification",
     model="taehoon222/korean-emotion-classifier-final",
-    device=0 if torch.cuda.is_available() else -1
+    tokenizer="taehoon222/korean-emotion-classifier-final",
+    device=0 if torch.cuda.is_available() else -1,
+    top_k=None
 )
+
+print("감정 분석 모델 로드 완료")
 
 
 def extract_emotion(text):
-    """
-    편지 내용을 분석해서 감정 라벨과 점수를 반환하는 함수
-    """
+    result = emotion_pipe(text)[0]
 
-    result = emotion_classifier(text)
-
-    top_result = result[0]
+    best = max(result, key=lambda x: x["score"])
 
     return {
-        "label": top_result["label"],
-        "score": float(top_result["score"])
+        "label": best["label"],
+        "score": float(best["score"]),
+        "full_result": result
     }
