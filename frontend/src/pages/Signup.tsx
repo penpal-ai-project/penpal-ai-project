@@ -1,19 +1,20 @@
+import { signup } from "../api";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserPlus, Sparkles, Shield, Upload, X, PenTool } from "lucide-react";
 
 type Gender = "male" | "female";
-type MatchPref = "any" | "male" | "female";
+type preferred_gender = "any" | "male" | "female";
 
 const Signup = () => {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
-  const [matchPref, setMatchPref] = useState<MatchPref>("any");
-  const [handwritingSample, setHandwritingSample] = useState<string | null>(null);
+  const [preferred_gender, setMatchPref] = useState<preferred_gender>("any");
+  const [handwriting_style, setHandwritingSample] = useState<string | null>(null);
 
   // Gender reveal logic: specific gender = immediate, "any" = after 3 exchanges
-  const genderReveal = matchPref === "any" ? "after3" : "immediate";
+  const genderReveal = preferred_gender === "any" ? "after3" : "immediate";
 
   const isValid = nickname.trim().length >= 2 && gender !== null;
 
@@ -25,13 +26,32 @@ const Signup = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isValid) return;
-    localStorage.setItem(
-      "maeum-user",
-      JSON.stringify({ nickname, gender, matchPref, genderReveal, handwritingSample: !!handwritingSample })
-    );
-    navigate("/write");
+
+    try {
+      const data = await signup(
+        nickname,
+        gender,
+        preferred_gender,
+        handwriting_style  // base64 문자열 or null
+      );
+
+      localStorage.setItem(
+        "maeum-user",
+        JSON.stringify({
+          user_id: data.user_id,
+          nickname,
+          gender,
+          preferred_gender,
+          genderReveal,
+        })
+      );
+
+      navigate("/write");
+    } catch (error) {
+      alert("회원가입에 실패했습니다.");
+    }
   };
 
   return (
@@ -99,15 +119,15 @@ const Signup = () => {
             </label>
             <div className="grid grid-cols-3 gap-2">
               {([
-                { value: "any" as MatchPref, label: "상관없음" },
-                { value: "male" as MatchPref, label: "남성만" },
-                { value: "female" as MatchPref, label: "여성만" },
+                { value: "any" as preferred_gender, label: "상관없음" },
+                { value: "male" as preferred_gender, label: "남성만" },
+                { value: "female" as preferred_gender, label: "여성만" },
               ]).map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => setMatchPref(opt.value)}
                   className={`px-3 py-2.5 rounded-xl border font-body text-xs transition-all duration-200 ${
-                    matchPref === opt.value
+                    preferred_gender === opt.value
                       ? "border-primary bg-primary/10 text-primary font-medium ring-2 ring-primary/20"
                       : "border-input bg-background text-muted-foreground hover:border-primary/40"
                   }`}
@@ -117,7 +137,7 @@ const Signup = () => {
               ))}
             </div>
             <p className="font-body text-xs text-muted-foreground mt-1.5">
-              {matchPref === "any"
+              {preferred_gender === "any"
                 ? "🔒 \"상관없음\" 선택 시, 성별은 편지 3회 교환 후 공개됩니다"
                 : "🔓 특정 성별 선택 시, 매칭 즉시 성별이 공개됩니다"}
             </p>
@@ -129,9 +149,9 @@ const Signup = () => {
               <PenTool className="w-4 h-4 inline mr-1" />
               손글씨 샘플 업로드 <span className="text-muted-foreground text-xs">(선택)</span>
             </label>
-            {handwritingSample ? (
+            {handwriting_style ? (
               <div className="relative rounded-xl border border-primary/30 bg-primary/5 p-3">
-                <img src={handwritingSample} alt="손글씨 샘플" className="w-full h-24 object-contain rounded-lg" />
+                <img src={handwriting_style} alt="손글씨 샘플" className="w-full h-24 object-contain rounded-lg" />
                 <button
                   onClick={() => setHandwritingSample(null)}
                   className="absolute top-2 right-2 w-6 h-6 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center"

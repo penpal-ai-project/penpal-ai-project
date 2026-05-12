@@ -42,3 +42,25 @@ export async function getReceivedLetters(receiverId: number): Promise<Letter[]> 
 
   return response.json();
 }
+
+export async function signup(
+nickname : string, 
+gender : string,
+preferred_gender : string,
+handwriting_style : string | null
+) {
+  const response = await fetch(`${API_BASE_URL}/users`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify({ nickname, gender, preferred_gender, handwriting_style }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "회원가입 실패");
+  }
+
+  return response.json(); 
+}
