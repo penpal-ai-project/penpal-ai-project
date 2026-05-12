@@ -18,7 +18,8 @@ const WriteLetter = () => {
   if (content.trim().length < 10) return;
 
   try {
-    const result = await saveLetter(1, 2, content);
+    const user = JSON.parse(localStorage.getItem("maeum-user"));
+    const result = await saveLetter(user.user_id, 2, content);
 
     console.log("감정 분석 결과:", result);
     
