@@ -1,10 +1,12 @@
 import json
-from ai_analysis import analyze_text
+import sqlite3
 
+from users import users_bp
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-import sqlite3
+from ai_analysis import analyze_text
+
 
 app = Flask(__name__)
 CORS(app)
@@ -20,23 +22,24 @@ def get_db():
 
 def init_db():
     conn = get_db()
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS letters (
             letter_id INTEGER PRIMARY KEY AUTOINCREMENT,
             sender_id INTEGER NOT NULL,
             receiver_id INTEGER NOT NULL,
             content TEXT NOT NULL,
-            
+
             embedding TEXT,
             emotion_label TEXT,
             emotion_score REAL,
-            
             traits TEXT,
-            
+
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             is_read BOOLEAN DEFAULT 0
         )
     """)
+
     conn.commit()
     conn.close()
 
@@ -46,7 +49,6 @@ def home():
     return "Letter backend server is running."
 
 
-# 편지 저장
 @app.route("/letters", methods=["POST"])
 def save_letter():
     data = request.get_json()
@@ -60,7 +62,6 @@ def save_letter():
             "error": "sender_id, receiver_id, content는 필수입니다."
         }), 400
 
-    # AI 분석 실행
     analysis = analyze_text(content)
 
     conn = get_db()
@@ -76,19 +77,18 @@ def save_letter():
             emotion_score,
             traits
         )
-        VALUES (?, ?, ?, ?, ?, ?,?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (
         sender_id,
         receiver_id,
         content,
-        json.dumps(analysis["embedding"]),
+        json.dumps(analysis["embedding"], ensure_ascii=False),
         analysis["emotion_label"],
         analysis["emotion_score"],
         json.dumps(analysis["traits"], ensure_ascii=False)
     ))
 
     conn.commit()
-
     new_letter_id = cursor.lastrowid
     conn.close()
 
@@ -102,13 +102,21 @@ def save_letter():
     }), 201
 
 
-# 받은 편지함 조회
-@app.route("/letters/received/<int:receiver_id>", methods=["GET"])
+@app.route("/letters/received/<receiver_id>", methods=["GET"])
 def get_received_letters(receiver_id):
     conn = get_db()
 
     letters = conn.execute("""
-        SELECT letter_id, sender_id, receiver_id, content, created_at
+        SELECT 
+            letter_id,
+            sender_id,
+            receiver_id,
+            content,
+            emotion_label,
+            emotion_score,
+            traits,
+            created_at,
+            is_read
         FROM letters
         WHERE receiver_id = ?
         ORDER BY created_at DESC
@@ -116,16 +124,34 @@ def get_received_letters(receiver_id):
 
     conn.close()
 
-    return jsonify([dict(letter) for letter in letters]), 200
+    result = []
+
+    for letter in letters:
+        letter_dict = dict(letter)
+
+        if letter_dict["traits"]:
+            letter_dict["traits"] = json.loads(letter_dict["traits"])
+
+        result.append(letter_dict)
+
+    return jsonify(result), 200
 
 
-# 특정 편지 하나 조회
 @app.route("/letters/<int:letter_id>", methods=["GET"])
 def get_letter_detail(letter_id):
     conn = get_db()
 
     letter = conn.execute("""
-        SELECT letter_id, sender_id, receiver_id, content, created_at
+        SELECT 
+            letter_id,
+            sender_id,
+            receiver_id,
+            content,
+            emotion_label,
+            emotion_score,
+            traits,
+            created_at,
+            is_read
         FROM letters
         WHERE letter_id = ?
     """, (letter_id,)).fetchone()
@@ -137,9 +163,14 @@ def get_letter_detail(letter_id):
             "error": "해당 편지를 찾을 수 없습니다."
         }), 404
 
-    return jsonify(dict(letter)), 200
+    letter_dict = dict(letter)
 
-# 편지 읽음 확인
+    if letter_dict["traits"]:
+        letter_dict["traits"] = json.loads(letter_dict["traits"])
+
+    return jsonify(letter_dict), 200
+
+
 @app.route("/letters/read/<int:letter_id>", methods=["PATCH"])
 def mark_as_read(letter_id):
     conn = get_db()
@@ -153,9 +184,11 @@ def mark_as_read(letter_id):
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "읽음 처리 완료"})
+    return jsonify({
+        "message": "읽음 처리 완료"
+    }), 200
+
 
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
-
+    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
