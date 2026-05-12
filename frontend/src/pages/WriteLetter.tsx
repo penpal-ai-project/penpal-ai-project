@@ -14,6 +14,7 @@ const WriteLetter = () => {
 
   const paperClasses = getPaperClasses(paperStyle);
 
+  
   const handleSubmit = async () => {
   if (content.trim().length < 10) return;
 
