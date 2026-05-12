@@ -5,8 +5,8 @@ import math
 # MVP 기준 추천 가중치
 # embedding: 글 전체 의미 유사도
 # traits: 성향/관심사 라벨 유사도
-EMBEDDING_WEIGHT = 0.7
-TRAIT_WEIGHT = 0.3
+EMBEDDING_WEIGHT = 0.75
+TRAIT_WEIGHT = 0.25
 
 
 def safe_json_loads(value):
