@@ -70,27 +70,23 @@ candidate_labels = [
 ]
 
 
-def analyze_traits(text):
+def analyze_traits(text, top_k=12):
     result = classifier(
         text,
-        candidate_labels,
+        candidate_labels=candidate_labels,
         multi_label=True
     )
 
-    labels = result["labels"]
-    scores = result["scores"]
+    traits = []
 
-    trait_scores = []
-
-    for label, score in zip(labels, scores):
-        trait_scores.append({
+    for label, score in zip(result["labels"], result["scores"]):
+        traits.append({
             "label": label,
-            "score": float(score)
+            "score": round(float(score), 4)
         })
 
-    trait_scores.sort(
-        key=lambda x: x["score"],
-        reverse=True
-    )
+    # 점수 높은 순으로 이미 정렬되어 나오지만, 안전하게 한 번 더 정렬
+    traits.sort(key=lambda item: item["score"], reverse=True)
 
-    return trait_scores[:10]
+    # 상위 12개만 저장
+    return traits[:top_k]
