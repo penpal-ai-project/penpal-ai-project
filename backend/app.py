@@ -1,11 +1,11 @@
 import json
 import sqlite3
 
-from users import users_bp
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from ai_analysis import analyze_text
+from matching_score import rank_matching_candidates
 
 
 app = Flask(__name__)
@@ -49,6 +49,12 @@ def home():
     return "Letter backend server is running."
 
 
+# 편지 저장
+# 이 시점에서만 AI 분석 실행:
+# - embedding 생성
+# - emotion 분석
+# - trait top 12 분석
+# - DB 저장
 @app.route("/letters", methods=["POST"])
 def save_letter():
     data = request.get_json()
@@ -62,7 +68,13 @@ def save_letter():
             "error": "sender_id, receiver_id, content는 필수입니다."
         }), 400
 
+    # 편지 저장 시점에만 AI 분석 실행
     analysis = analyze_text(content)
+
+    embedding = analysis["embedding"]
+    emotion_label = analysis["emotion_label"]
+    emotion_score = analysis["emotion_score"]
+    traits = analysis["traits"]
 
     conn = get_db()
     cursor = conn.cursor()
@@ -82,10 +94,10 @@ def save_letter():
         sender_id,
         receiver_id,
         content,
-        json.dumps(analysis["embedding"], ensure_ascii=False),
-        analysis["emotion_label"],
-        analysis["emotion_score"],
-        json.dumps(analysis["traits"], ensure_ascii=False)
+        json.dumps(embedding, ensure_ascii=False),
+        emotion_label,
+        emotion_score,
+        json.dumps(traits, ensure_ascii=False)
     ))
 
     conn.commit()
@@ -95,19 +107,26 @@ def save_letter():
     return jsonify({
         "message": "편지가 저장되었습니다.",
         "letter_id": new_letter_id,
-        "emotion_label": analysis["emotion_label"],
-        "emotion_score": analysis["emotion_score"],
-        "embedding_length": len(analysis["embedding"]),
-        "traits": analysis["traits"]
+
+        # emotion은 매칭용이 아니라 감정 기록용으로만 저장
+        "emotion_label": emotion_label,
+        "emotion_score": emotion_score,
+
+        # traits는 매칭에 사용
+        "traits": traits,
+
+        # 테스트 확인용
+        "embedding_length": len(embedding)
     }), 201
 
 
-@app.route("/letters/received/<receiver_id>", methods=["GET"])
+# 받은 편지함 조회
+@app.route("/letters/received/<int:receiver_id>", methods=["GET"])
 def get_received_letters(receiver_id):
     conn = get_db()
 
     letters = conn.execute("""
-        SELECT 
+        SELECT
             letter_id,
             sender_id,
             receiver_id,
@@ -127,22 +146,24 @@ def get_received_letters(receiver_id):
     result = []
 
     for letter in letters:
-        letter_dict = dict(letter)
+        item = dict(letter)
 
-        if letter_dict["traits"]:
-            letter_dict["traits"] = json.loads(letter_dict["traits"])
+        # traits는 DB에 JSON 문자열로 저장되어 있으므로 다시 list로 변환
+        if item.get("traits"):
+            item["traits"] = json.loads(item["traits"])
 
-        result.append(letter_dict)
+        result.append(item)
 
     return jsonify(result), 200
 
 
+# 특정 편지 하나 조회
 @app.route("/letters/<int:letter_id>", methods=["GET"])
 def get_letter_detail(letter_id):
     conn = get_db()
 
     letter = conn.execute("""
-        SELECT 
+        SELECT
             letter_id,
             sender_id,
             receiver_id,
@@ -163,32 +184,114 @@ def get_letter_detail(letter_id):
             "error": "해당 편지를 찾을 수 없습니다."
         }), 404
 
-    letter_dict = dict(letter)
+    result = dict(letter)
 
-    if letter_dict["traits"]:
-        letter_dict["traits"] = json.loads(letter_dict["traits"])
+    if result.get("traits"):
+        result["traits"] = json.loads(result["traits"])
 
-    return jsonify(letter_dict), 200
+    return jsonify(result), 200
 
 
+# 편지 읽음 처리
 @app.route("/letters/read/<int:letter_id>", methods=["PATCH"])
 def mark_as_read(letter_id):
     conn = get_db()
+    cursor = conn.cursor()
 
-    conn.execute("""
+    cursor.execute("""
         UPDATE letters
         SET is_read = 1
         WHERE letter_id = ?
     """, (letter_id,))
 
     conn.commit()
+    updated_count = cursor.rowcount
     conn.close()
 
+    if updated_count == 0:
+        return jsonify({
+            "error": "해당 편지를 찾을 수 없습니다."
+        }), 404
+
     return jsonify({
-        "message": "읽음 처리 완료"
+        "message": "읽음 처리 완료",
+        "letter_id": letter_id
+    }), 200
+
+
+# 매칭 결과 조회
+# 여기서는 AI 분석을 다시 실행하지 않음.
+# DB에 저장된 embedding, traits만 불러와서 유사도 계산.
+@app.route("/match/<int:user_id>", methods=["GET"])
+def match_users(user_id):
+    conn = get_db()
+
+    # 현재 사용자가 보낸 최신 편지 1개를 기준으로 매칭
+    target_letter = conn.execute("""
+        SELECT
+            sender_id AS user_id,
+            embedding,
+            traits
+        FROM letters
+        WHERE sender_id = ?
+          AND embedding IS NOT NULL
+          AND traits IS NOT NULL
+        ORDER BY created_at DESC
+        LIMIT 1
+    """, (user_id,)).fetchone()
+
+    if target_letter is None:
+        conn.close()
+        return jsonify({
+            "error": "해당 사용자의 분석된 편지가 없습니다."
+        }), 404
+
+    # 다른 사용자들의 최신 편지만 후보로 사용
+    candidate_rows = conn.execute("""
+        SELECT
+            l.sender_id AS user_id,
+            l.embedding,
+            l.traits
+        FROM letters l
+        INNER JOIN (
+            SELECT
+                sender_id,
+                MAX(created_at) AS latest_created_at
+            FROM letters
+            WHERE sender_id != ?
+              AND embedding IS NOT NULL
+              AND traits IS NOT NULL
+            GROUP BY sender_id
+        ) latest
+        ON l.sender_id = latest.sender_id
+        AND l.created_at = latest.latest_created_at
+    """, (user_id,)).fetchall()
+
+    conn.close()
+
+    candidate_profiles = []
+
+    for candidate in candidate_rows:
+        candidate_profiles.append({
+            "user_id": candidate["user_id"],
+            "embedding": candidate["embedding"],
+            "traits": candidate["traits"]
+        })
+
+    results = rank_matching_candidates(
+        target_user_id=user_id,
+        target_embedding=target_letter["embedding"],
+        target_traits=target_letter["traits"],
+        candidate_profiles=candidate_profiles,
+        top_k=3
+    )
+
+    return jsonify({
+        "target_user_id": user_id,
+        "matches": results
     }), 200
 
 
 if __name__ == "__main__":
     init_db()
-    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+    app.run(debug=True)

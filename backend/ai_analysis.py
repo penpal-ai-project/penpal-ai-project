@@ -1,24 +1,21 @@
-from create_embedding import create_embedding
-from emotion_model import extract_emotion
+from create_embedding import get_embedding
+from emotion_model import analyze_emotion
 from trait_analysis import analyze_traits
 
 
-def analyze_text(content):
-    """
-    편지 내용을 받아서
-    1. KoE5 벡터 변환
-    2. 감정 추출
-    3. 성향 분석
-    결과를 하나로 묶어 반환하는 함수
-    """
-
-    embedding = create_embedding(content)
-    emotion = extract_emotion(content)
-    traits = analyze_traits(content)
+def analyze_text(text):
+    embedding = get_embedding(text)
+    emotion_result = analyze_emotion(text)
+    traits = analyze_traits(text, top_k=12)
 
     return {
         "embedding": embedding,
-        "emotion_label": emotion["label"],
-        "emotion_score": emotion["score"],
+
+        # emotion은 매칭에 사용하지 않고,
+        # 나중에 본인 감정 기록 / 마이페이지 통계용으로만 저장
+        "emotion_label": emotion_result["label"],
+        "emotion_score": emotion_result["score"],
+
+        # traits는 매칭 점수 계산에 사용
         "traits": traits
     }
