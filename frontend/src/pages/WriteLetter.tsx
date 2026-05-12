@@ -14,15 +14,14 @@ const WriteLetter = () => {
 
   const paperClasses = getPaperClasses(paperStyle);
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
   if (content.trim().length < 10) return;
 
   try {
-    await saveLetter(1, 2, content);
+
+    const result = await saveLetter(1, 2, content);
 
     console.log("감정 분석 결과:", result);
-    
-    alert("편지가 저장되었습니다.");
 
     navigate("/matching", {
       state: {
@@ -31,9 +30,12 @@ const WriteLetter = () => {
         analysis: result,
       },
     });
+
   } catch (error) {
-    console.error(error);
-    alert("편지 저장에 실패했습니다.");
+
+    console.error("편지 전송 실패:", error);
+
+    alert("편지 전송에 실패했습니다.");
   }
 };
 
