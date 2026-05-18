@@ -50,15 +50,22 @@ def cosine_similarity(vector_a, vector_b):
 
 def traits_to_dict(traits):
     """
-    trait_analysis 결과를 비교하기 쉬운 dict 형태로 변환.
+    trait_analysis 결과 또는 user_profiles의 누적 traits를
+    비교하기 쉬운 dict 형태로 변환.
 
-    입력 예시:
+    입력 형태 1:
     [
         {"label": "음악 좋아하는 사람", "score": 0.99},
         {"label": "혼자 산책 좋아하는 사람", "score": 0.95}
     ]
 
-    출력 예시:
+    입력 형태 2:
+    {
+        "음악 좋아하는 사람": 0.99,
+        "혼자 산책 좋아하는 사람": 0.95
+    }
+
+    출력:
     {
         "음악 좋아하는 사람": 0.99,
         "혼자 산책 좋아하는 사람": 0.95
@@ -70,6 +77,14 @@ def traits_to_dict(traits):
     if not traits:
         return {}
 
+    # user_profiles에서 가져온 누적 traits는 이미 dict 형태
+    if isinstance(traits, dict):
+        return {
+            label: float(score)
+            for label, score in traits.items()
+        }
+
+    # letters에서 가져온 traits는 list 형태
     trait_dict = {}
 
     for item in traits:

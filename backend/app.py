@@ -4,12 +4,15 @@ import sqlite3
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+from users import users_bp
 from ai_analysis import analyze_text
 from matching_score import rank_matching_candidates
-
+from profile_updater import update_user_profile_analysis
 
 app = Flask(__name__)
 CORS(app)
+
+app.register_blueprint(users_bp)
 
 DB_NAME = "letters.db"
 
@@ -23,6 +26,7 @@ def get_db():
 def init_db():
     conn = get_db()
 
+    # 1. 편지 저장용 테이블
     conn.execute("""
         CREATE TABLE IF NOT EXISTS letters (
             letter_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,6 +41,44 @@ def init_db():
 
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             is_read BOOLEAN DEFAULT 0
+        )
+    """)
+
+    # 2. 사용자 정보 저장용 테이블
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nickname TEXT NOT NULL UNIQUE,
+            gender TEXT NOT NULL,
+            preferred_gender TEXT NOT NULL,
+            handwriting_style TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # 3. 사용자 누적 프로필 저장용 테이블
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_profiles (
+            user_id INTEGER PRIMARY KEY,
+            profile_embedding TEXT,
+            profile_traits TEXT,
+            letter_count INTEGER DEFAULT 0,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+        # 4. 매칭 관계 저장용 테이블 -> 중복 방지에도 이용
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS matches (
+            match_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_a_id INTEGER NOT NULL,
+            user_b_id INTEGER NOT NULL,
+            final_score REAL,
+            embedding_score REAL,
+            trait_score REAL,
+            matched_traits TEXT,
+            status TEXT DEFAULT 'active',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -100,8 +142,17 @@ def save_letter():
         json.dumps(traits, ensure_ascii=False)
     ))
 
-    conn.commit()
     new_letter_id = cursor.lastrowid
+
+    # 편지 분석 결과를 사용자 누적 프로필에 반영
+    update_user_profile_analysis(
+        conn=conn,
+        user_id=sender_id,
+        embedding=embedding,
+        traits=traits
+    )
+
+    conn.commit()
     conn.close()
 
     return jsonify({
@@ -221,73 +272,159 @@ def mark_as_read(letter_id):
 
 # 매칭 결과 조회
 # 여기서는 AI 분석을 다시 실행하지 않음.
-# DB에 저장된 embedding, traits만 불러와서 유사도 계산.
+# user_profiles에 누적 저장된 embedding, traits만 불러와서 유사도 계산.
+# 이미 active 상태로 매칭된 사용자는 다시 추천하지 않음.
 @app.route("/match/<int:user_id>", methods=["GET"])
 def match_users(user_id):
     conn = get_db()
 
-    # 현재 사용자가 보낸 최신 편지 1개를 기준으로 매칭
-    target_letter = conn.execute("""
+    # 현재 사용자의 누적 프로필을 기준으로 매칭
+    target_profile = conn.execute("""
         SELECT
-            sender_id AS user_id,
-            embedding,
-            traits
-        FROM letters
-        WHERE sender_id = ?
-          AND embedding IS NOT NULL
-          AND traits IS NOT NULL
-        ORDER BY created_at DESC
-        LIMIT 1
+            up.user_id,
+            up.profile_embedding,
+            up.profile_traits,
+            up.letter_count,
+            u.preferred_gender
+        FROM user_profiles up
+        JOIN users u
+          ON up.user_id = u.user_id
+        WHERE up.user_id = ?
+          AND up.profile_embedding IS NOT NULL
+          AND up.profile_traits IS NOT NULL
     """, (user_id,)).fetchone()
 
-    if target_letter is None:
+    if target_profile is None:
         conn.close()
         return jsonify({
-            "error": "해당 사용자의 분석된 편지가 없습니다."
+            "error": "해당 사용자의 누적 프로필이 없습니다."
         }), 404
 
-    # 다른 사용자들의 최신 편지만 후보로 사용
+    # 이미 active 상태로 매칭된 사용자 목록 조회
+    matched_rows = conn.execute("""
+        SELECT
+            CASE
+                WHEN user_a_id = ? THEN user_b_id
+                ELSE user_a_id
+            END AS matched_user_id
+        FROM matches
+        WHERE status = 'active'
+          AND (user_a_id = ? OR user_b_id = ?)
+    """, (user_id, user_id, user_id)).fetchall()
+
+    already_matched_user_ids = [
+        row["matched_user_id"]
+        for row in matched_rows
+    ]
+
+    # 다른 사용자들의 누적 프로필을 후보로 사용
+    # 단, 이미 매칭된 사용자는 제외
     candidate_rows = conn.execute("""
         SELECT
-            l.sender_id AS user_id,
-            l.embedding,
-            l.traits
-        FROM letters l
-        INNER JOIN (
-            SELECT
-                sender_id,
-                MAX(created_at) AS latest_created_at
-            FROM letters
-            WHERE sender_id != ?
-              AND embedding IS NOT NULL
-              AND traits IS NOT NULL
-            GROUP BY sender_id
-        ) latest
-        ON l.sender_id = latest.sender_id
-        AND l.created_at = latest.latest_created_at
-    """, (user_id,)).fetchall()
-
-    conn.close()
+            up.user_id,
+            up.profile_embedding,
+            up.profile_traits,
+            up.letter_count
+        FROM user_profiles up
+        JOIN users u
+          ON up.user_id = u.user_id
+        WHERE up.user_id != ?
+          AND up.profile_embedding IS NOT NULL
+          AND up.profile_traits IS NOT NULL
+          AND (
+              ? = '전체'
+              OR u.gender = ?
+          )
+    """, (
+        user_id,
+        target_profile["preferred_gender"],
+        target_profile["preferred_gender"]
+    )).fetchall()
 
     candidate_profiles = []
 
     for candidate in candidate_rows:
+        candidate_user_id = candidate["user_id"]
+
+        if candidate_user_id in already_matched_user_ids:
+            continue
+
         candidate_profiles.append({
-            "user_id": candidate["user_id"],
-            "embedding": candidate["embedding"],
-            "traits": candidate["traits"]
+            "user_id": candidate_user_id,
+            "embedding": candidate["profile_embedding"],
+            "traits": candidate["profile_traits"]
         })
 
     results = rank_matching_candidates(
         target_user_id=user_id,
-        target_embedding=target_letter["embedding"],
-        target_traits=target_letter["traits"],
+        target_embedding=target_profile["profile_embedding"],
+        target_traits=target_profile["profile_traits"],
         candidate_profiles=candidate_profiles,
         top_k=3
+    
+        
     )
+    
+    # 1명은 무조건 추천하고,
+    # 2~3번째 후보는 점수가 충분히 높을 때만 추가 추천
+    EXTRA_MATCH_THRESHOLD = 0.75
+
+    filtered_results = []
+
+    for index, result in enumerate(results):
+        if index == 0:
+            filtered_results.append(result)
+        elif result["final_score"] >= EXTRA_MATCH_THRESHOLD:
+            filtered_results.append(result)
+
+    results = filtered_results
+
+    # 추천된 매칭 결과를 matches 테이블에 저장
+    for result in results:
+        user_a_id = min(user_id, result["user_id"])
+        user_b_id = max(user_id, result["user_id"])
+
+        # 혹시 중복 저장되는 상황 방지
+        existing_match = conn.execute("""
+            SELECT match_id
+            FROM matches
+            WHERE status = 'active'
+              AND user_a_id = ?
+              AND user_b_id = ?
+        """, (user_a_id, user_b_id)).fetchone()
+
+        if existing_match:
+            continue
+
+        conn.execute("""
+            INSERT INTO matches (
+                user_a_id,
+                user_b_id,
+                final_score,
+                embedding_score,
+                trait_score,
+                matched_traits,
+                status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 'active')
+        """, (
+            user_a_id,
+            user_b_id,
+            result["final_score"],
+            result["embedding_score"],
+            result["trait_score"],
+            json.dumps(result["matched_traits"], ensure_ascii=False)
+        ))
+
+    conn.commit()
+    conn.close()
 
     return jsonify({
         "target_user_id": user_id,
+        "target_letter_count": target_profile["letter_count"],
+        "matching_base": "user_profiles",
+        "preferred_gender": target_profile["preferred_gender"],
+        "excluded_user_ids": already_matched_user_ids,
         "matches": results
     }), 200
 
