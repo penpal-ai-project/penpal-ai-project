@@ -8,11 +8,47 @@ export type Letter = {
   created_at: string;
 };
 
+export type Trait = string | {
+  label: string;
+  score?: number;
+};
+
+export type SavedLetterAnalysis = {
+  letter_id: number;
+  emotion_label: string;
+  emotion_score: number;
+  traits: Trait[];
+  embedding_length: number;
+  message?: string;
+};
+
+export type MatchResult = {
+  user_id: number;
+  final_score: number;
+  embedding_score: number;
+  trait_score: number;
+  matched_traits: Trait[];
+  rank: number;
+};
+
+export type MatchResponse = {
+  target_user_id: number;
+  matching_base: string;
+  target_letter_count: number;
+  preferred_gender: string;
+  excluded_user_ids: number[];
+  matches: MatchResult[];
+};
+
+export function getTraitLabel(trait: Trait): string {
+  return typeof trait === "string" ? trait : trait.label;
+}
+
 export async function saveLetter(
   senderId: number,
   receiverId: number,
   content: string
-) {
+): Promise<SavedLetterAnalysis> {
   const response = await fetch(`${API_BASE_URL}/letters`, {
     method: "POST",
     headers: {
@@ -28,6 +64,17 @@ export async function saveLetter(
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.error || "편지 저장 실패");
+  }
+
+  return response.json();
+}
+
+export async function getMatches(userId: number): Promise<MatchResponse> {
+  const response = await fetch(`${API_BASE_URL}/match/${userId}`);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "매칭 결과 조회 실패");
   }
 
   return response.json();

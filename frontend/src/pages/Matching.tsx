@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Heart, Sparkles, Users, Brain, Hash, BarChart3, Zap } from "lucide-react";
 import EmotionBadge from "@/components/EmotionBadge";
+import { getMatches, getTraitLabel, type MatchResponse, type SavedLetterAnalysis, type Trait } from "../api";
 
 const analysisSteps = [
   { text: "편지를 읽고 있어요...", icon: Brain },
@@ -12,21 +13,38 @@ const analysisSteps = [
   { text: "마음이 연결되었어요!", icon: Sparkles },
 ];
 
-const mockKeywords = ["위로", "일상", "고독", "자기성찰", "감사"];
-
-const mockMatches = [
-  { nickname: "따뜻한 봄바람", matchScore: 92, sharedEmotions: ["따뜻함", "감사"], reason: "감정 톤과 위로의 키워드가 높은 유사도" },
-  { nickname: "고요한 달빛", matchScore: 87, sharedEmotions: ["평온함", "그리움"], reason: "고요한 분위기와 성찰적 성향 일치" },
-  { nickname: "푸른 하늘", matchScore: 78, sharedEmotions: ["기쁨"], reason: "긍정적 감정 흐름과 일상 관심사 공유" },
-];
+const mockKeywords: Trait[] = ["위로", "일상", "고독", "자기성찰", "감사"];
 
 const Matching = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [step, setStep] = useState(0);
   const [showResult, setShowResult] = useState(false);
+  const [matchResult, setMatchResult] = useState<MatchResponse | null>(null);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
 
-  const emotions = (location.state as any)?.emotions || ["따뜻함", "그리움"];
+  const analysis = (location.state as any)?.analysis as SavedLetterAnalysis | undefined;
+  const emotions = analysis?.emotion_label ? [analysis.emotion_label] : ["따뜻함", "그리움"];
+  const traits = analysis?.traits?.slice(0, 5) || mockKeywords;
+
+  const handleLoadMatches = async () => {
+    setMatchLoading(true);
+    setMatchError(null);
+
+    try {
+      // TODO: 로그인 기능 연결 후 user_id 1을 실제 로그인 user_id로 교체하기.
+      const result = await getMatches(1);
+      setMatchResult(result);
+      console.log("Match result:", result.matches);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "매칭 결과 조회 실패";
+      setMatchError(message);
+      console.error(error);
+    } finally {
+      setMatchLoading(false);
+    }
+  };
 
   useEffect(() => {
     const timers = [
@@ -82,27 +100,52 @@ const Matching = () => {
               <p className="font-body text-xs text-muted-foreground mb-3 flex items-center gap-1.5"><Brain className="w-3.5 h-3.5" /> AI 감정 분석 결과</p>
               <div className="flex flex-wrap gap-2 mb-4">{emotions.map((e: string) => <EmotionBadge key={e} emotion={e} />)}</div>
               <p className="font-body text-xs text-muted-foreground mb-2">추출된 키워드</p>
-              <div className="flex flex-wrap gap-1.5">{mockKeywords.map((kw) => <span key={kw} className="px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground font-body text-xs">#{kw}</span>)}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {traits.map((kw, index) => {
+                  const label = getTraitLabel(kw);
+
+                  return (
+                    <span key={`${label}-${index}`} className="px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground font-body text-xs">
+                      #{label}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Matched Users (max 3) */}
             <div className="bg-card rounded-2xl p-6 border border-border mb-4 text-left">
               <p className="font-body text-xs text-muted-foreground mb-3 flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> AI 자동 매칭 결과 (최대 3명)</p>
-              <div className="space-y-3">
-                {mockMatches.map((m, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-secondary/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-body text-sm font-medium text-foreground">{m.nickname}</p>
-                      <p className="font-body text-lg font-bold text-primary">{m.matchScore}%</p>
-                    </div>
-                    <div className="flex gap-1 mb-1.5">{m.sharedEmotions.map((e) => <EmotionBadge key={e} emotion={e} />)}</div>
-                    <div className="flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-accent" />
-                      <p className="font-body text-[10px] text-muted-foreground">{m.reason}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <button
+                onClick={handleLoadMatches}
+                disabled={matchLoading}
+                className="w-full mb-4 bg-primary text-primary-foreground py-3 rounded-xl font-body text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              >
+                {matchLoading ? "매칭 결과 불러오는 중..." : "매칭 결과 불러오기"}
+              </button>
+              {matchError && <p className="font-body text-xs text-destructive mb-3">{matchError}</p>}
+              {matchResult && (
+                <div className="space-y-3">
+                  {matchResult.matches.length === 0 ? (
+                    <p className="font-body text-sm text-muted-foreground">추천된 매칭 결과가 아직 없습니다.</p>
+                  ) : (
+                    matchResult.matches.map((m) => (
+                      <div key={m.user_id} className="p-3 rounded-xl bg-secondary/50">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-body text-sm font-medium text-foreground">추천 사용자 #{m.user_id}</p>
+                          <p className="font-body text-lg font-bold text-primary">{Math.round(m.final_score * 100)}%</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Zap className="w-3 h-3 text-accent" />
+                          <p className="font-body text-[10px] text-muted-foreground">
+                            matched_traits: {m.matched_traits.length > 0 ? m.matched_traits.map(getTraitLabel).join(", ") : "없음"}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="bg-secondary/50 rounded-xl p-4 mb-8">

@@ -4,12 +4,13 @@ import { Send, Sparkles } from "lucide-react";
 import EmotionBadge from "@/components/EmotionBadge";
 import LetterPaperSelector, { getPaperClasses, type PaperStyle } from "@/components/LetterPaperSelector";
 import AIWritingAssistant from "@/components/AIWritingAssistant";
-import { saveLetter } from "../api";
+import { getTraitLabel, saveLetter, type SavedLetterAnalysis } from "../api";
 
 const WriteLetter = () => {
   const navigate = useNavigate();
   const [content, setContent] = useState("");
   const [paperStyle, setPaperStyle] = useState<PaperStyle>("default");
+  const [analysisResult, setAnalysisResult] = useState<SavedLetterAnalysis | null>(null);
 
 
   const paperClasses = getPaperClasses(paperStyle);
@@ -19,10 +20,14 @@ const WriteLetter = () => {
   if (content.trim().length < 10) return;
 
   try {
-    const user = JSON.parse(localStorage.getItem("maeum-user"));
-    const result = await saveLetter(user.user_id, 2, content);
+    // TODO: 로그인 기능 연결 후 sender_id/receiver_id를 실제 로그인 user_id와 수신자 user_id로 교체하기.
+    const result = await saveLetter(1, 2, content);
 
-    console.log("감정 분석 결과:", result);
+    setAnalysisResult(result);
+    console.log("Letter analysis result:", {
+      emotion_label: result.emotion_label,
+      traits: result.traits?.slice(0, 5).map(getTraitLabel),
+    });
     
     alert("편지가 저장되었습니다.");
 
@@ -88,6 +93,26 @@ const WriteLetter = () => {
             </p>
           </div>
         </div>
+
+        {analysisResult && (
+          <div className="bg-card rounded-xl p-4 border border-border mb-6">
+            <p className="font-body text-xs text-muted-foreground mb-2">AI 분석 결과</p>
+            <p className="font-body text-sm text-foreground mb-2">
+              감정: <span className="font-medium">{analysisResult.emotion_label}</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {analysisResult.traits?.slice(0, 5).map((trait, index) => {
+                const label = getTraitLabel(trait);
+
+                return (
+                <span key={`${label}-${index}`} className="px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground font-body text-xs">
+                  #{label}
+                </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Submit */}
         <button
