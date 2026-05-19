@@ -10,6 +10,7 @@ const WriteLetter = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const receiverId = (location.state as any)?.receiverId as number | undefined;
+  const receiverNickname = (location.state as any)?.receiverNickname as string | undefined;
   const [content, setContent] = useState("");
   const [paperStyle, setPaperStyle] = useState<PaperStyle>("default");
   const [analysisResult, setAnalysisResult] = useState<SavedLetterAnalysis | null>(null);
@@ -67,7 +68,7 @@ const WriteLetter = () => {
         {/* Letter Area */}
         <div className={`rounded-2xl p-8 border shadow-sm mb-6 ${paperClasses.paper}`}>
           <div className="flex items-center gap-2 mb-4">
-            <span className={`${paperClasses.font} text-sm opacity-60 ${paperClasses.text}`}>Dear. 나에게,</span>
+            <span className={`${paperClasses.font} text-sm opacity-60 ${paperClasses.text}`}>Dear. {receiverNickname ?? "나에게"},</span>
           </div>
           <textarea
             value={content}
