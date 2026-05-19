@@ -5,12 +5,19 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from users import users_bp
+
 from ai_analysis import analyze_text
 from matching_score import rank_matching_candidates
 from profile_updater import update_user_profile_analysis
 
 app = Flask(__name__)
-CORS(app)
+
+CORS(app, origins=[
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+])
 
 app.register_blueprint(users_bp)
 
@@ -153,12 +160,14 @@ def save_letter():
     new_letter_id = cursor.lastrowid
 
     # 편지 분석 결과를 사용자 누적 프로필에 반영
+
     update_user_profile_analysis(
         conn=conn,
         user_id=sender_id,
         embedding=embedding,
         traits=traits
     )
+    
 
     conn.commit()
     conn.close()
