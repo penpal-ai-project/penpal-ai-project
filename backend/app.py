@@ -373,18 +373,18 @@ def match_users(user_id):
         for row in matched_rows
     ]
 
-    # 다른 사용자들의 누적 프로필을 후보로 사용
+        # 다른 사용자들의 누적 프로필을 후보로 사용
     # 단, 이미 매칭된 사용자는 제외
     candidate_rows = conn.execute("""
         SELECT
             up.user_id,
+            u.nickname,
             up.profile_embedding,
             up.profile_traits,
             up.letter_count,
             u.gender
         FROM user_profiles up
-        JOIN users u
-          ON up.user_id = u.user_id
+        JOIN users u ON up.user_id = u.user_id
         WHERE up.user_id != ?
           AND up.profile_embedding IS NOT NULL
           AND up.profile_traits IS NOT NULL
@@ -416,6 +416,7 @@ def match_users(user_id):
     for candidate in candidates_after_gender_filter:
         candidate_profiles.append({
             "user_id": candidate["user_id"],
+            "nickname": candidate["nickname"],
             "embedding": candidate["profile_embedding"],
             "traits": candidate["profile_traits"]
         })
@@ -432,9 +433,11 @@ def match_users(user_id):
     if candidate_count_before_filter == 0:
         results = []
         debug_message = "매칭 가능한 다른 사용자 프로필이 없습니다. 다른 유저도 편지를 작성해야 매칭 후보가 생깁니다."
+
     elif candidate_count_after_gender_filter == 0:
         results = []
         debug_message = "선호 성별 조건에 맞는 후보가 없습니다. 테스트를 위해 preferred_gender를 전체 또는 any로 설정해보세요."
+
     else:
         results = rank_matching_candidates(
             target_user_id=user_id,
@@ -444,11 +447,19 @@ def match_users(user_id):
             top_k=3
         )
 
+        nickname_by_user_id = {
+            candidate["user_id"]: candidate["nickname"]
+            for candidate in candidate_profiles
+        }
+
+        for result in results:
+            result["nickname"] = nickname_by_user_id.get(result["user_id"])
+
         if len(results) == 0:
             debug_message = "후보 프로필은 있지만 매칭 점수 계산 결과가 없습니다. embedding 또는 traits 저장 형식을 확인해주세요."
         else:
             debug_message = None
-
+            
     # 1명은 무조건 추천하고,
     # 2~3번째 후보는 점수가 충분히 높을 때만 추가 추천
     EXTRA_MATCH_THRESHOLD = 0.75
