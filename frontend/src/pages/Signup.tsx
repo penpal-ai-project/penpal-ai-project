@@ -1,5 +1,5 @@
 import { signup } from "../api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserPlus, Sparkles, Shield, Upload, X, PenTool } from "lucide-react";
 
@@ -12,6 +12,12 @@ const Signup = () => {
   const [gender, setGender] = useState<Gender | null>(null);
   const [preferred_gender, setMatchPref] = useState<preferred_gender>("any");
   const [handwriting_style, setHandwritingSample] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (localStorage.getItem("maeum-user")) {
+      navigate("/write");
+    }
+  }, []);
 
   // Gender reveal logic: specific gender = immediate, "any" = after 3 exchanges
   const genderReveal = preferred_gender === "any" ? "after3" : "immediate";
