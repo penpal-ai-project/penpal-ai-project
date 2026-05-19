@@ -157,7 +157,10 @@ def update_preferred_gender(user_id):
         "message": "매칭 선호 성별 수정 완료"
     })
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1332d13 (회원가입 및 CORS 수정)
 @users_bp.route("/login", methods=["POST"])
 def login():
 
@@ -191,4 +194,7 @@ def login():
         }), 404
 
     return jsonify(dict(user)), 200
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1332d13 (회원가입 및 CORS 수정)
