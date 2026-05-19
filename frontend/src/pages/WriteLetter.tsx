@@ -32,7 +32,29 @@ const WriteLetter = () => {
   const userId = Number(savedUserId);
 
   try {
+<<<<<<< Updated upstream
     const result = await saveLetter(userId, userId, content);
+=======
+    const savedUserId = localStorage.getItem("user_id") ?? (() => {
+      const savedUser = localStorage.getItem("maeum-user");
+      return savedUser ? String(JSON.parse(savedUser).user_id ?? "") : null;
+    })();
+
+    if (!savedUserId) {
+      alert("\uB85C\uADF8\uC778\uB41C \uC0AC\uC6A9\uC790 \uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uB85C\uADF8\uC778\uD574\uC8FC\uC138\uC694.");
+      return;
+    }
+
+    const senderId = Number(savedUserId);
+    // TODO: 실제 수신자 선택 기능 연결 시 receiver_id 교체
+    const receiverId = 0;
+
+    console.log("letter \uC800\uC7A5 sender_id:", senderId);
+    console.log("letter \uC800\uC7A5 receiver_id:", receiverId);
+
+    const result = await saveLetter(senderId, receiverId, content);
+    console.log("Letter save response:", result);
+>>>>>>> Stashed changes
 
     setAnalysisResult(result);
     console.log("Letter analysis result:", {

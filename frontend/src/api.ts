@@ -1,4 +1,6 @@
-const API_BASE_URL = "http://127.0.0.1:5000";
+
+// 실행할 때 터미널에 ipconfig 확인 후 IPv4 주소로 바꿔주세요
+const API_BASE_URL = "http://10.21.43.13:5000";
 
 export type Letter = {
   letter_id: number;

@@ -99,15 +99,23 @@ def home():
 # - DB 저장
 @app.route("/letters", methods=["POST"])
 def save_letter():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     sender_id = data.get("sender_id")
     receiver_id = data.get("receiver_id")
     content = data.get("content")
 
-    if not sender_id or not receiver_id or not content:
+    if sender_id is None or receiver_id is None or content is None or not str(content).strip():
         return jsonify({
             "error": "sender_id, receiver_id, content는 필수입니다."
+        }), 400
+
+    try:
+        sender_id = int(sender_id)
+        receiver_id = int(receiver_id)
+    except (TypeError, ValueError):
+        return jsonify({
+            "error": "sender_id와 receiver_id는 숫자여야 합니다."
         }), 400
 
     # 편지 저장 시점에만 AI 분석 실행
@@ -504,7 +512,7 @@ def match_users(user_id):
         "matches": results
     }), 200
 
-
+#백엔드 서버 외부 접속
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
