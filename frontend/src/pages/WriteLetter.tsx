@@ -12,70 +12,38 @@ const WriteLetter = () => {
   const [paperStyle, setPaperStyle] = useState<PaperStyle>("default");
   const [analysisResult, setAnalysisResult] = useState<SavedLetterAnalysis | null>(null);
 
-
   const paperClasses = getPaperClasses(paperStyle);
 
-
   const handleSubmit = async () => {
-  if (content.trim().length < 10) return;
+    if (content.trim().length < 10) return;
 
-  const savedUserId = localStorage.getItem("user_id") ?? (() => {
-    const saved = localStorage.getItem("maeum-user");
-    return saved ? String(JSON.parse(saved).user_id ?? "") : null;
-  })();
-
-  if (!savedUserId) {
-    alert("로그인이 필요합니다.");
-    return;
-  }
-
-  const userId = Number(savedUserId);
-
-  try {
-<<<<<<< Updated upstream
-    const result = await saveLetter(userId, userId, content);
-=======
-    const savedUserId = localStorage.getItem("user_id") ?? (() => {
-      const savedUser = localStorage.getItem("maeum-user");
-      return savedUser ? String(JSON.parse(savedUser).user_id ?? "") : null;
-    })();
+    const savedUser = localStorage.getItem("maeum-user");
+    const savedUserId = savedUser ? String(JSON.parse(savedUser).user_id ?? "") : null;
 
     if (!savedUserId) {
-      alert("\uB85C\uADF8\uC778\uB41C \uC0AC\uC6A9\uC790 \uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uB85C\uADF8\uC778\uD574\uC8FC\uC138\uC694.");
+      alert("로그인이 필요합니다.");
       return;
     }
 
-    const senderId = Number(savedUserId);
-    // TODO: 실제 수신자 선택 기능 연결 시 receiver_id 교체
-    const receiverId = 0;
+    const userId = Number(savedUserId);
 
-    console.log("letter \uC800\uC7A5 sender_id:", senderId);
-    console.log("letter \uC800\uC7A5 receiver_id:", receiverId);
+    try {
+      const result = await saveLetter(userId, userId, content);
 
-    const result = await saveLetter(senderId, receiverId, content);
-    console.log("Letter save response:", result);
->>>>>>> Stashed changes
+      setAnalysisResult(result);
 
-    setAnalysisResult(result);
-    console.log("Letter analysis result:", {
-      emotion_label: result.emotion_label,
-      traits: result.traits?.slice(0, 5).map(getTraitLabel),
-    });
-    
-    alert("편지가 저장되었습니다.");
-
-    navigate("/matching", {
-      state: {
-        content,
-        paperStyle,
-        analysis: result,
-      },
-    });
-  } catch (error) {
-    console.error(error);
-    alert("편지 저장에 실패했습니다.");
-  }
-};
+      navigate("/matching", {
+        state: {
+          content,
+          paperStyle,
+          analysis: result,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      alert("편지 저장에 실패했습니다.");
+    }
+  };
 
   return (
     <div className="min-h-screen pt-24 pb-12">
@@ -87,7 +55,6 @@ const WriteLetter = () => {
             솔직한 감정일수록, 더 깊은 연결이 만들어집니다
           </p>
         </div>
-
 
         {/* Paper Selector */}
         <div className="mb-8">
@@ -114,8 +81,6 @@ const WriteLetter = () => {
           </div>
         </div>
 
-        {/* AI Writing Assistant */}
-
         {/* AI analysis hint */}
         <div className="flex items-start gap-3 bg-card rounded-xl p-4 border border-border mb-8">
           <Sparkles className="w-5 h-5 mt-0.5 shrink-0" />
@@ -136,11 +101,10 @@ const WriteLetter = () => {
             <div className="flex flex-wrap gap-1.5">
               {analysisResult.traits?.slice(0, 5).map((trait, index) => {
                 const label = getTraitLabel(trait);
-
                 return (
-                <span key={`${label}-${index}`} className="px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground font-body text-xs">
-                  #{label}
-                </span>
+                  <span key={`${label}-${index}`} className="px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground font-body text-xs">
+                    #{label}
+                  </span>
                 );
               })}
             </div>
