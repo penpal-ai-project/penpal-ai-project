@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Mail, BookOpen, Heart, Home } from "lucide-react";
+import { BookOpen, Heart, Home } from "lucide-react";
 
 const Header = () => {
   const location = useLocation();
@@ -7,7 +7,6 @@ const Header = () => {
 
   const navItems = [
     { path: "/", label: "홈", icon: Home, requireAuth: false },
-    { path: "/write", label: "편지 쓰기", icon: Mail, requireAuth: true },
     { path: "/letters", label: "편지함", icon: BookOpen, requireAuth: true },
     { path: "/archive", label: "감정 기록", icon: Heart, requireAuth: true },
   ];
