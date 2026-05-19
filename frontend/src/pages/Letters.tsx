@@ -260,7 +260,7 @@ const Letters = () => {
           {/* 편지 목록 */}
           <h3 className="text-lg font-bold mb-4">주고받은 편지</h3>
           <div className="space-y-4">
-            {selectedPenpal.letters.map((letter) => (
+            {selectedPenpal.letters.filter((l) => l.isReceived).map((letter) => (
               <div key={letter.id} className="relative">
                 <LetterCard
                   sender={letter.isReceived ? selectedPenpal.nickname : "나"}
