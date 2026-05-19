@@ -40,7 +40,7 @@ const Index = () => {
   const handleStart = () => {
     const user = localStorage.getItem("maeum-user");
     if (user) {
-      navigate("/write");
+      navigate("/profile");
     } else {
       navigate("/signup");
     }
