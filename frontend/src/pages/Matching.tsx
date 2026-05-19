@@ -33,10 +33,8 @@ const Matching = () => {
     setMatchError(null);
 
     try {
-      const savedUserId = localStorage.getItem("user_id") ?? (() => {
-        const savedUser = localStorage.getItem("maeum-user");
-        return savedUser ? String(JSON.parse(savedUser).user_id ?? "") : null;
-      })();
+      const savedUser = localStorage.getItem("maeum-user");
+      const savedUserId = savedUser ? String(JSON.parse(savedUser).user_id ?? "") : null;
 
       if (!savedUserId) {
         setMatchError("로그인된 사용자 정보가 없습니다.");
