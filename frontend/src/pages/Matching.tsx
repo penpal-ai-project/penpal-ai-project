@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Heart, Sparkles, Users, Brain, Hash, BarChart3, Zap } from "lucide-react";
 import EmotionBadge from "@/components/EmotionBadge";
