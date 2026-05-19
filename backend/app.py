@@ -6,12 +6,12 @@ from flask_cors import CORS
 
 from users import users_bp
 
-
-# from ai_analysis import analyze_text
-# from matching_score import rank_matching_candidates
-# from profile_updater import update_user_profile_analysis
+from ai_analysis import analyze_text
+from matching_score import rank_matching_candidates
+from profile_updater import update_user_profile_analysis
 
 app = Flask(__name__)
+
 CORS(app, origins=[
     "http://localhost:8081",
     "http://127.0.0.1:8081",
@@ -126,12 +126,12 @@ def save_letter():
         }), 400
 
     # 편지 저장 시점에만 AI 분석 실행
- #   analysis = analyze_text(content)
+    analysis = analyze_text(content)
 
- #   embedding = analysis["embedding"]
- #   emotion_label = analysis["emotion_label"]
-#  emotion_score = analysis["emotion_score"]
- #   traits = analysis["traits"]
+    embedding = analysis["embedding"]
+    emotion_label = analysis["emotion_label"]
+    emotion_score = analysis["emotion_score"]
+    traits = analysis["traits"]
 
     conn = get_db()
     cursor = conn.cursor()
@@ -160,14 +160,14 @@ def save_letter():
     new_letter_id = cursor.lastrowid
 
     # 편지 분석 결과를 사용자 누적 프로필에 반영
-    """
+
     update_user_profile_analysis(
         conn=conn,
         user_id=sender_id,
         embedding=embedding,
         traits=traits
     )
-    """
+    
 
     conn.commit()
     conn.close()
