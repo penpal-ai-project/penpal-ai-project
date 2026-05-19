@@ -156,7 +156,7 @@ const Matching = () => {
                     matchResult.matches.map((m) => (
                       <div key={m.user_id} className="p-3 rounded-xl bg-secondary/50">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="font-body text-sm font-medium text-foreground">추천 사용자 #{m.user_id}</p>
+                          <p className="font-body text-sm font-medium text-foreground">{m.nickname}</p>
                           <p className="font-body text-lg font-bold text-primary">{Math.round(m.final_score * 100)}%</p>
                         </div>
                         <div className="flex items-center gap-1">
