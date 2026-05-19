@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Mail, Heart, Users, Clock, ArrowRight, Sparkles, Lock, Eye, UserPlus, Brain, Hash, Music, BarChart3 } from "lucide-react";
 import heroImage from "@/assets/hero-letters.jpg";
+import { useNavigate } from "react-router-dom";
+
 
 const features = [
   {
@@ -33,6 +35,17 @@ const steps = [
 ];
 
 const Index = () => {
+  const navigate = useNavigate();
+  
+  const handleStart = () => {
+    const user = localStorage.getItem("maeum-user");
+    if (user) {
+      navigate("/write");
+    } else {
+      navigate("/signup");
+    }
+  };
+
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -54,13 +67,14 @@ const Index = () => {
               AI가 당신의 마음을 분석하고 맞는 사람을 찾아드려요.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start" style={{ animationDelay: "0.3s", animation: "fadeInUp 0.6s ease-out 0.3s forwards", opacity: 0 }}>
-              <Link
-                to="/signup"
+              
+              <button
+                onClick={handleStart}
                 className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-body font-medium text-base hover:opacity-90 transition-opacity"
               >
-                <UserPlus className="w-5 h-5" />
-                무료로 시작하기
-              </Link>
+                <Mail className="w-5 h-5" />
+                시작하기
+              </button>
               <a
                 href="#how-it-works"
                 className="inline-flex items-center justify-center gap-2 bg-secondary text-secondary-foreground px-8 py-4 rounded-xl font-body font-medium text-base hover:bg-secondary/80 transition-colors"
@@ -224,13 +238,13 @@ const Index = () => {
           <p className="font-body text-muted-foreground mb-8 max-w-md mx-auto">
             당신의 감정을 기다리는 누군가가 있습니다
           </p>
-          <Link
-            to="/signup"
+          <button
+            onClick={handleStart}
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-10 py-4 rounded-xl font-body font-medium text-lg hover:opacity-90 transition-opacity"
           >
             <Mail className="w-5 h-5" />
             시작하기
-          </Link>
+          </button>
         </div>
       </section>
 

@@ -15,13 +15,24 @@ const WriteLetter = () => {
 
   const paperClasses = getPaperClasses(paperStyle);
 
-  
+
   const handleSubmit = async () => {
   if (content.trim().length < 10) return;
 
+  const savedUserId = localStorage.getItem("user_id") ?? (() => {
+    const saved = localStorage.getItem("maeum-user");
+    return saved ? String(JSON.parse(saved).user_id ?? "") : null;
+  })();
+
+  if (!savedUserId) {
+    alert("로그인이 필요합니다.");
+    return;
+  }
+
+  const userId = Number(savedUserId);
+
   try {
-    // TODO: 로그인 기능 연결 후 sender_id/receiver_id를 실제 로그인 user_id와 수신자 user_id로 교체하기.
-    const result = await saveLetter(1, 2, content);
+    const result = await saveLetter(userId, userId, content);
 
     setAnalysisResult(result);
     console.log("Letter analysis result:", {
