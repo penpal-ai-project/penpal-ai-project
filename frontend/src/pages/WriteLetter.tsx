@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Send, Sparkles } from "lucide-react";
 import EmotionBadge from "@/components/EmotionBadge";
 import LetterPaperSelector, { getPaperClasses, type PaperStyle } from "@/components/LetterPaperSelector";
@@ -8,6 +8,8 @@ import { getTraitLabel, saveLetter, type SavedLetterAnalysis } from "../api";
 
 const WriteLetter = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const receiverId = (location.state as any)?.receiverId as number | undefined;
   const [content, setContent] = useState("");
   const [paperStyle, setPaperStyle] = useState<PaperStyle>("default");
   const [analysisResult, setAnalysisResult] = useState<SavedLetterAnalysis | null>(null);
@@ -26,9 +28,10 @@ const WriteLetter = () => {
     }
 
     const userId = Number(savedUserId);
+    const targetId = receiverId ?? userId;
 
     try {
-      const result = await saveLetter(userId, userId, content);
+      const result = await saveLetter(userId, targetId, content);
 
       setAnalysisResult(result);
 

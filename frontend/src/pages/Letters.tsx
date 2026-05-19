@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowLeft, User, Send, StickyNote, Music, Lock, Unlock, Hash } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import LetterCard from "@/components/LetterCard";
 import EmotionBadge from "@/components/EmotionBadge";
 import GenderRevealBadge from "@/components/GenderRevealBadge";
@@ -73,13 +73,13 @@ const mockPenpals: PenpalProfile[] = [
 ];
 
 const Letters = () => {
+  const navigate = useNavigate();
   const [selectedPenpal, setSelectedPenpal] = useState<PenpalProfile | null>(null);
   const [selectedLetter, setSelectedLetter] = useState<PenpalLetter | null>(null);
   const [memos, setMemos] = useState<Record<number, string>>(
     Object.fromEntries(mockPenpals.map((p) => [p.id, p.memo]))
   );
   const [editingMemo, setEditingMemo] = useState(false);
-  const [replyContent, setReplyContent] = useState("");
   const [showMemoInput, setShowMemoInput] = useState(false);
   const [letterMemos, setLetterMemos] = useState<Record<number, string>>({});
 
@@ -88,6 +88,7 @@ const Letters = () => {
     const paperClasses = getPaperClasses(selectedLetter.paperStyle);
     const revealThreshold = selectedPenpal.genderReveal === "immediate" ? 0 : 3;
     const isRevealed = selectedPenpal.exchangeCount >= revealThreshold;
+    const mostRecentLetterId = selectedPenpal.letters.filter((l) => l.isReceived)[0]?.id;
 
     return (
       <div className="min-h-screen pt-24 pb-12">
@@ -178,25 +179,13 @@ const Letters = () => {
             </div>
           )}
 
-          {selectedLetter.isReceived && (
-            <div>
-              <h3 className="font-letter text-lg font-bold mb-4">답장을 쓰다</h3>
-              <div className="letter-paper rounded-2xl p-8 border border-border shadow-sm mb-4">
-                <textarea
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="따뜻한 마음을 담아 답장을 적어보세요..."
-                  className="w-full min-h-[200px] bg-transparent font-letter text-foreground leading-[32px] resize-none focus:outline-none placeholder:text-muted-foreground/50"
-                />
-              </div>
-              <button
-                disabled={replyContent.trim().length < 10}
-                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-body font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-              >
-                <Send className="w-5 h-5" /> 답장 보내기
-              </button>
-              <p className="font-body text-xs text-muted-foreground text-center mt-3">답장은 24시간 후에 상대방에게 전달됩니다</p>
-            </div>
+          {selectedLetter.id === mostRecentLetterId && (
+            <button
+              onClick={() => navigate("/write", { state: { receiverId: selectedPenpal.id } })}
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-body font-medium hover:opacity-90 transition-opacity"
+            >
+              <Send className="w-5 h-5" /> 답장 쓰기
+            </button>
           )}
         </div>
       </div>
