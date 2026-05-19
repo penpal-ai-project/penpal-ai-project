@@ -278,6 +278,16 @@ def mark_as_read(letter_id):
 def match_users(user_id):
     conn = get_db()
 
+    total_user_count = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM users
+    """).fetchone()["count"]
+
+    total_profile_count = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM user_profiles
+    """).fetchone()["count"]
+
     # 현재 사용자의 누적 프로필을 기준으로 매칭
     target_profile = conn.execute("""
         SELECT
@@ -295,10 +305,39 @@ def match_users(user_id):
     """, (user_id,)).fetchone()
 
     if target_profile is None:
+        target_user = conn.execute("""
+            SELECT preferred_gender
+            FROM users
+            WHERE user_id = ?
+        """, (user_id,)).fetchone()
+
+        debug_message = "현재 사용자의 누적 프로필이 없습니다. 먼저 편지를 작성해야 매칭할 수 있습니다."
+        response = {
+            "target_user_id": user_id,
+            "target_profile_exists": False,
+            "target_letter_count": 0,
+            "matching_base": "user_profiles",
+            "preferred_gender": target_user["preferred_gender"] if target_user else None,
+            "excluded_user_ids": [],
+            "total_user_count": total_user_count,
+            "total_profile_count": total_profile_count,
+            "candidate_count_before_filter": 0,
+            "candidate_count_after_gender_filter": 0,
+            "debug_message": debug_message,
+            "matches": []
+        }
+
+        print("===== MATCH DEBUG =====")
+        print("target_user_id:", user_id)
+        print("total_user_count:", total_user_count)
+        print("total_profile_count:", total_profile_count)
+        print("candidate_count_before_filter:", 0)
+        print("candidate_count_after_gender_filter:", 0)
+        print("excluded_user_ids:", [])
+        print("=======================")
+
         conn.close()
-        return jsonify({
-            "error": "해당 사용자의 누적 프로필이 없습니다."
-        }), 404
+        return jsonify(response), 200
 
     # 이미 active 상태로 매칭된 사용자 목록 조회
     matched_rows = conn.execute("""
@@ -324,24 +363,17 @@ def match_users(user_id):
             up.user_id,
             up.profile_embedding,
             up.profile_traits,
-            up.letter_count
+            up.letter_count,
+            u.gender
         FROM user_profiles up
         JOIN users u
           ON up.user_id = u.user_id
         WHERE up.user_id != ?
           AND up.profile_embedding IS NOT NULL
           AND up.profile_traits IS NOT NULL
-          AND (
-              ? = '전체'
-              OR u.gender = ?
-          )
-    """, (
-        user_id,
-        target_profile["preferred_gender"],
-        target_profile["preferred_gender"]
-    )).fetchall()
+    """, (user_id,)).fetchall()
 
-    candidate_profiles = []
+    candidates_before_gender_filter = []
 
     for candidate in candidate_rows:
         candidate_user_id = candidate["user_id"]
@@ -349,22 +381,57 @@ def match_users(user_id):
         if candidate_user_id in already_matched_user_ids:
             continue
 
+        candidates_before_gender_filter.append(candidate)
+
+    candidate_count_before_filter = len(candidates_before_gender_filter)
+    preferred_gender = target_profile["preferred_gender"]
+    skip_gender_filter = preferred_gender in ("전체", "any")
+    candidates_after_gender_filter = []
+
+    for candidate in candidates_before_gender_filter:
+        if skip_gender_filter or candidate["gender"] == preferred_gender:
+            candidates_after_gender_filter.append(candidate)
+
+    candidate_count_after_gender_filter = len(candidates_after_gender_filter)
+
+    candidate_profiles = []
+
+    for candidate in candidates_after_gender_filter:
         candidate_profiles.append({
-            "user_id": candidate_user_id,
+            "user_id": candidate["user_id"],
             "embedding": candidate["profile_embedding"],
             "traits": candidate["profile_traits"]
         })
 
-    results = rank_matching_candidates(
-        target_user_id=user_id,
-        target_embedding=target_profile["profile_embedding"],
-        target_traits=target_profile["profile_traits"],
-        candidate_profiles=candidate_profiles,
-        top_k=3
-    
-        
-    )
-    
+    print("===== MATCH DEBUG =====")
+    print("target_user_id:", user_id)
+    print("total_user_count:", total_user_count)
+    print("total_profile_count:", total_profile_count)
+    print("candidate_count_before_filter:", candidate_count_before_filter)
+    print("candidate_count_after_gender_filter:", candidate_count_after_gender_filter)
+    print("excluded_user_ids:", already_matched_user_ids)
+    print("=======================")
+
+    if candidate_count_before_filter == 0:
+        results = []
+        debug_message = "매칭 가능한 다른 사용자 프로필이 없습니다. 다른 유저도 편지를 작성해야 매칭 후보가 생깁니다."
+    elif candidate_count_after_gender_filter == 0:
+        results = []
+        debug_message = "선호 성별 조건에 맞는 후보가 없습니다. 테스트를 위해 preferred_gender를 전체 또는 any로 설정해보세요."
+    else:
+        results = rank_matching_candidates(
+            target_user_id=user_id,
+            target_embedding=target_profile["profile_embedding"],
+            target_traits=target_profile["profile_traits"],
+            candidate_profiles=candidate_profiles,
+            top_k=3
+        )
+
+        if len(results) == 0:
+            debug_message = "후보 프로필은 있지만 매칭 점수 계산 결과가 없습니다. embedding 또는 traits 저장 형식을 확인해주세요."
+        else:
+            debug_message = None
+
     # 1명은 무조건 추천하고,
     # 2~3번째 후보는 점수가 충분히 높을 때만 추가 추천
     EXTRA_MATCH_THRESHOLD = 0.75
@@ -378,6 +445,9 @@ def match_users(user_id):
             filtered_results.append(result)
 
     results = filtered_results
+
+    if candidate_count_after_gender_filter > 0 and len(results) == 0 and debug_message is None:
+        debug_message = "후보 프로필은 있지만 매칭 점수 계산 결과가 없습니다. embedding 또는 traits 저장 형식을 확인해주세요."
 
     # 추천된 매칭 결과를 matches 테이블에 저장
     for result in results:
@@ -421,10 +491,16 @@ def match_users(user_id):
 
     return jsonify({
         "target_user_id": user_id,
+        "target_profile_exists": True,
         "target_letter_count": target_profile["letter_count"],
         "matching_base": "user_profiles",
-        "preferred_gender": target_profile["preferred_gender"],
+        "preferred_gender": preferred_gender,
         "excluded_user_ids": already_matched_user_ids,
+        "total_user_count": total_user_count,
+        "total_profile_count": total_profile_count,
+        "candidate_count_before_filter": candidate_count_before_filter,
+        "candidate_count_after_gender_filter": candidate_count_after_gender_filter,
+        "debug_message": debug_message,
         "matches": results
     }), 200
 

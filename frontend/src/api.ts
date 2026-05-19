@@ -33,10 +33,16 @@ export type MatchResult = {
 
 export type MatchResponse = {
   target_user_id: number;
+  target_profile_exists?: boolean;
   matching_base: string;
   target_letter_count: number;
   preferred_gender: string;
   excluded_user_ids: number[];
+  total_user_count?: number;
+  total_profile_count?: number;
+  candidate_count_before_filter?: number;
+  candidate_count_after_gender_filter?: number;
+  debug_message?: string;
   matches: MatchResult[];
 };
 
@@ -69,7 +75,7 @@ export async function saveLetter(
   return response.json();
 }
 
-export async function getMatches(userId: number): Promise<MatchResponse> {
+export async function getMatches(userId: number): Promise<MatchResponse | MatchResult[]> {
   const response = await fetch(`${API_BASE_URL}/match/${userId}`);
 
   if (!response.ok) {

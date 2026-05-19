@@ -33,10 +33,36 @@ const Matching = () => {
     setMatchError(null);
 
     try {
-      // TODO: 로그인 기능 연결 후 user_id 1을 실제 로그인 user_id로 교체하기.
-      const result = await getMatches(1);
-      setMatchResult(result);
-      console.log("Match result:", result.matches);
+      const savedUserId = localStorage.getItem("user_id") ?? (() => {
+        const savedUser = localStorage.getItem("maeum-user");
+        return savedUser ? String(JSON.parse(savedUser).user_id ?? "") : null;
+      })();
+
+      if (!savedUserId) {
+        setMatchError("로그인된 사용자 정보가 없습니다.");
+        return;
+      }
+
+      console.log("matching 요청 user_id:", savedUserId);
+
+      const result = await getMatches(Number(savedUserId));
+      const matches = Array.isArray(result) ? result : result.matches ?? [];
+
+      console.log("Match full response:", result);
+      console.log("Match debug message:", Array.isArray(result) ? undefined : result.debug_message);
+      console.log("Match result:", matches);
+
+      setMatchResult(Array.isArray(result) ? {
+        target_user_id: Number(savedUserId),
+        matching_base: "user_profiles",
+        target_letter_count: 0,
+        preferred_gender: "",
+        excluded_user_ids: [],
+        matches
+      } : {
+        ...result,
+        matches
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "매칭 결과 조회 실패";
       setMatchError(message);
@@ -127,7 +153,7 @@ const Matching = () => {
               {matchResult && (
                 <div className="space-y-3">
                   {matchResult.matches.length === 0 ? (
-                    <p className="font-body text-sm text-muted-foreground">추천된 매칭 결과가 아직 없습니다.</p>
+                    <p className="font-body text-sm text-muted-foreground">{matchResult.debug_message || "추천된 매칭 결과가 아직 없습니다."}</p>
                   ) : (
                     matchResult.matches.map((m) => (
                       <div key={m.user_id} className="p-3 rounded-xl bg-secondary/50">
