@@ -502,10 +502,9 @@ def match_users(user_id):
                 embedding_score,
                 trait_score,
                 matched_traits,
-                nickname,
                 status
             )
-            VALUES (?, ?, ?, ?, ?, ?,?, 'active')
+            VALUES (?, ?, ?, ?, ?, ?, 'active')
         """, (
             user_a_id,
             user_b_id,
