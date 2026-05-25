@@ -336,6 +336,35 @@ def mark_as_read(letter_id):
         "letter_id": letter_id
     }), 200
 
+# 내가 편지를 주고받은 사용자 목록 조회
+@app.route("/conversations/<int:user_id>", methods=["GET"])
+def get_conversations(user_id):
+    conn = get_db()
+
+    users = conn.execute("""
+        SELECT DISTINCT
+            u.user_id,
+            u.nickname,
+            u.gender,
+            u.handwriting_style
+        FROM users u
+        JOIN letters l
+          ON (
+              (l.sender_id = ? AND l.receiver_id = u.user_id)
+              OR
+              (l.receiver_id = ? AND l.sender_id = u.user_id)
+          )
+        WHERE u.user_id != ?
+        ORDER BY u.nickname ASC
+    """, (user_id, user_id, user_id)).fetchall()
+
+    conn.close()
+
+    result = []
+    for user in users:
+        result.append(dict(user))
+
+    return jsonify(result), 200
 
 # 매칭 결과 조회
 # 여기서는 AI 분석을 다시 실행하지 않음.
@@ -423,7 +452,8 @@ def match_users(user_id):
         for row in matched_rows
     ]
 
-        # 다른 사용자들의 누적 프로필을 후보로 사용
+
+    # 다른 사용자들의 누적 프로필을 후보로 사용
     # 단, 이미 매칭된 사용자는 제외
     candidate_rows = conn.execute("""
         SELECT
