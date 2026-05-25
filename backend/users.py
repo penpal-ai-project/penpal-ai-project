@@ -49,6 +49,7 @@ def create_user():
 
     cursor = conn.cursor()
 
+    # 사용자 생성
     cursor.execute("""
         INSERT INTO users (
             nickname,
@@ -64,9 +65,23 @@ def create_user():
         handwriting_style
     ))
 
-    conn.commit()
-
     new_user_id = cursor.lastrowid
+
+    # 회원가입 시 나에게 쓰는 첫 편지 자동 생성
+    cursor.execute("""
+        INSERT INTO letters (
+            sender_id,
+            receiver_id,
+            content
+        )
+        VALUES (?, ?, ?)
+    """, (
+        new_user_id,
+        new_user_id,
+        "처음 나에게 쓰는 편지입니다."
+    ))
+
+    conn.commit()
 
     conn.close()
 

@@ -259,6 +259,56 @@ def get_letter_detail(letter_id):
 
     return jsonify(result), 200
 
+# 특정 사용자와 주고받은 편지 조회
+@app.route("/letters/chat/<int:my_id>/<int:target_id>", methods=["GET"])
+def get_chat_letters(my_id, target_id):
+
+    conn = get_db()
+
+    letters = conn.execute("""
+        SELECT
+            letter_id,
+            sender_id,
+            receiver_id,
+            content,
+            emotion_label,
+            emotion_score,
+            traits,
+            created_at,
+            is_read
+
+        FROM letters
+
+        WHERE
+            (sender_id = ? AND receiver_id = ?)
+
+            OR
+
+            (sender_id = ? AND receiver_id = ?)
+
+        ORDER BY created_at ASC
+    """, (
+        my_id,
+        target_id,
+        target_id,
+        my_id
+    )).fetchall()
+
+    conn.close()
+
+    result = []
+
+    for letter in letters:
+
+        item = dict(letter)
+
+        if item.get("traits"):
+            item["traits"] = json.loads(item["traits"])
+
+        result.append(item)
+
+    return jsonify(result), 200
+
 
 # 편지 읽음 처리
 @app.route("/letters/read/<int:letter_id>", methods=["PATCH"])
