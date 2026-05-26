@@ -117,7 +117,7 @@ const Matching = () => {
               <Heart className="w-10 h-10 text-accent" />
             </div>
             <h2 className="text-2xl md:text-3xl font-bold mb-3">마음이 연결되었어요</h2>
-            <p className="font-body text-muted-foreground mb-6">AI가 당신의 편지를 분석하여<br />비슷한 감정의 사람들을 찾았습니다</p>
+            <p className="font-body text-muted-foreground mb-6">AI가 당신의 편지를 분석하여<br />비슷한 감정의 사람을 찾았습니다</p>
 
             {/* AI Analysis Result */}
             <div className="bg-card rounded-2xl p-6 border border-border mb-4 text-left">
@@ -139,7 +139,7 @@ const Matching = () => {
 
             {/* Matched Users (max 3) */}
             <div className="bg-card rounded-2xl p-6 border border-border mb-4 text-left">
-              <p className="font-body text-xs text-muted-foreground mb-3 flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> AI 자동 매칭 결과 (최대 3명)</p>
+              <p className="font-body text-xs text-muted-foreground mb-3 flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> AI 자동 매칭 결과 </p>
               <button
                 onClick={handleLoadMatches}
                 disabled={matchLoading}
