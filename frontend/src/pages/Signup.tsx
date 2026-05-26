@@ -36,6 +36,7 @@ const Signup = () => {
     if (!isValid) return;
 
     try {
+      navigate("/write");
       const data = await signup(
         nickname,
         gender,
@@ -53,8 +54,6 @@ const Signup = () => {
           genderReveal,
         })
       );
-
-      navigate("/write");
     } catch (error) {
       alert("회원가입에 실패했습니다.");
     }
