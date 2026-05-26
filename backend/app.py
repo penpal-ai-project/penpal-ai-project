@@ -130,6 +130,7 @@ def save_letter():
 
     # 편지 저장 시점에만 AI 분석 실행
     analysis = analyze_text(content)
+    print(analysis)
 
     embedding = analysis["embedding"]
     emotion_label = analysis["emotion_label"]
@@ -140,6 +141,17 @@ def save_letter():
     cursor = conn.cursor()
 
     cursor.execute("""
+        UPDATE letters
+        SET status = 'received'
+        WHERE sender_id = ?
+          AND receiver_id = ?
+          AND status = 'pending'
+    """, (
+        receiver_id,
+        sender_id
+    ))
+
+    cursor.execute("""
         INSERT INTO letters (
             sender_id,
             receiver_id,
@@ -147,9 +159,10 @@ def save_letter():
             embedding,
             emotion_label,
             emotion_score,
-            traits
+            traits,
+            status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         sender_id,
         receiver_id,
@@ -157,7 +170,8 @@ def save_letter():
         json.dumps(embedding, ensure_ascii=False),
         emotion_label,
         emotion_score,
-        json.dumps(traits, ensure_ascii=False)
+        json.dumps(traits, ensure_ascii=False),
+        "pending"
     ))
 
     new_letter_id = cursor.lastrowid
