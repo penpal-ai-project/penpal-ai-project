@@ -304,7 +304,7 @@ const Letters = () => {
                       <User className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-body text-sm font-medium text-foreground">{penpal.nickname}</p>
+                      <p className="font-body text-sm font-medium text-forㄷeground">{penpal.nickname}</p>
                       <p className="font-body text-xs text-muted-foreground">
                         편지 {penpal.exchangeCount}회 · {penpal.letters.length}통
                       </p>
