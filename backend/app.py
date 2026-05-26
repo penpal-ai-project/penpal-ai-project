@@ -13,6 +13,7 @@ from profile_updater import update_user_profile_analysis
 app = Flask(__name__)
 
 CORS(app, origins=[
+    "http://10.21.43.13:8080",
     "http://192.168.126.1:8080",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
@@ -351,15 +352,30 @@ def get_conversations(user_id):
             u.gender,
             u.handwriting_style
         FROM users u
-        JOIN letters l
-          ON (
-              (l.sender_id = ? AND l.receiver_id = u.user_id)
-              OR
-              (l.receiver_id = ? AND l.sender_id = u.user_id)
-          )
         WHERE u.user_id != ?
+          AND (
+              EXISTS (
+                  SELECT 1
+                  FROM letters l
+                  WHERE
+                      (l.sender_id = ? AND l.receiver_id = u.user_id)
+                      OR
+                      (l.receiver_id = ? AND l.sender_id = u.user_id)
+              )
+              OR
+              EXISTS (
+                  SELECT 1
+                  FROM matches m
+                  WHERE m.status = 'active'
+                    AND (
+                        (m.user_a_id = ? AND m.user_b_id = u.user_id)
+                        OR
+                        (m.user_b_id = ? AND m.user_a_id = u.user_id)
+                    )
+              )
+          )
         ORDER BY u.nickname ASC
-    """, (user_id, user_id, user_id)).fetchall()
+    """, (user_id, user_id, user_id, user_id, user_id)).fetchall()
 
     conn.close()
 
@@ -455,6 +471,36 @@ def match_users(user_id):
         for row in matched_rows
     ]
 
+    if len(already_matched_user_ids) >= 3:
+        debug_message = "이미 active 매칭된 사용자가 3명이라 새 매칭을 받을 수 없습니다."
+
+        response = {
+            "target_user_id": user_id,
+            "target_profile_exists": True,
+            "target_letter_count": target_profile["letter_count"],
+            "matching_base": "user_profiles",
+            "preferred_gender": target_profile["preferred_gender"],
+            "excluded_user_ids": already_matched_user_ids,
+            "total_user_count": total_user_count,
+            "total_profile_count": total_profile_count,
+            "candidate_count_before_filter": 0,
+            "candidate_count_after_gender_filter": 0,
+            "debug_message": debug_message,
+            "matches": []
+        }
+
+        print("===== MATCH DEBUG =====")
+        print("target_user_id:", user_id)
+        print("total_user_count:", total_user_count)
+        print("total_profile_count:", total_profile_count)
+        print("candidate_count_before_filter:", 0)
+        print("candidate_count_after_gender_filter:", 0)
+        print("excluded_user_ids:", already_matched_user_ids)
+        print("=======================")
+
+        conn.close()
+        return jsonify(response), 200
+
 
     # 다른 사용자들의 누적 프로필을 후보로 사용
     # 단, 이미 매칭된 사용자는 제외
@@ -479,6 +525,16 @@ def match_users(user_id):
         candidate_user_id = candidate["user_id"]
 
         if candidate_user_id in already_matched_user_ids:
+            continue
+
+        candidate_match_count = conn.execute("""
+            SELECT COUNT(*) AS count
+            FROM matches
+            WHERE status = 'active'
+              AND (user_a_id = ? OR user_b_id = ?)
+        """, (candidate_user_id, candidate_user_id)).fetchone()["count"]
+
+        if candidate_match_count >= 3:
             continue
 
         candidates_before_gender_filter.append(candidate)
@@ -562,6 +618,23 @@ def match_users(user_id):
 
     # 추천된 매칭 결과를 matches 테이블에 저장
     for result in results:
+        my_match_count = conn.execute("""
+            SELECT COUNT(*) AS count
+            FROM matches
+            WHERE status = 'active'
+              AND (user_a_id = ? OR user_b_id = ?)
+        """, (user_id, user_id)).fetchone()["count"]
+
+        other_match_count = conn.execute("""
+            SELECT COUNT(*) AS count
+            FROM matches
+            WHERE status = 'active'
+              AND (user_a_id = ? OR user_b_id = ?)
+        """, (result["user_id"], result["user_id"])).fetchone()["count"]
+
+        if my_match_count >= 3 or other_match_count >= 3:
+            continue
+
         user_a_id = min(user_id, result["user_id"])
         user_b_id = max(user_id, result["user_id"])
 
@@ -612,7 +685,7 @@ def match_users(user_id):
         "candidate_count_before_filter": candidate_count_before_filter,
         "candidate_count_after_gender_filter": candidate_count_after_gender_filter,
         "debug_message": debug_message,
-        "matches": results
+        "matches": results[:1]
     }), 200
 
 #백엔드 서버 외부 접속
