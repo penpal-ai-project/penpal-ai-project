@@ -180,12 +180,18 @@ const Letters = () => {
           )}
 
           {selectedLetter.id === mostRecentLetterId && (
-            <button
-              onClick={() => navigate("/write", { state: { receiverId: selectedPenpal.id, receiverNickname: selectedPenpal.nickname } })}
-              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-body font-medium hover:opacity-90 transition-opacity"
-            >
-              <Send className="w-5 h-5" /> 답장 쓰기
-            </button>
+            selectedLetter.status === "pending" ? (
+              <div className="mb-8">
+                <WaitingInteraction />
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate("/write", { state: { receiverId: selectedPenpal.id, receiverNickname: selectedPenpal.nickname } })}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-body font-medium hover:opacity-90 transition-opacity"
+              >
+                <Send className="w-5 h-5" /> 답장 쓰기
+              </button>
+            )
           )}
         </div>
       </div>
