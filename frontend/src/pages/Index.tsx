@@ -200,8 +200,8 @@ const Index = () => {
           </div>
           <div className="space-y-6">
             {[
-              { round: "1~2회", status: "성별·키워드 비공개", desc: "오직 감정과 편지 내용만으로 소통합니다", icon: Lock, active: false },
-              { round: "3회~", status: "성별 공개 & 키워드 일부 공개", desc: "충분한 교류 후 상대방의 정보가 단계적으로 공개됩니다", icon: Eye, active: true },
+              { round: "1~2회", status: "성별 비공개", desc: "오직 감정과 편지 내용만으로 소통합니다", icon: Lock, active: false },
+              { round: "3회~", status: "성별 공개", desc: "충분한 교류 후 상대방의 정보가 단계적으로 공개됩니다", icon: Eye, active: true },
               { round: "계속", status: "감정 기록 공유 & 음악 추천", desc: "감정 변화를 함께 보고, 편지에 어울리는 음악도 추천받으세요", icon: Music, active: true },
             ].map(({ round, status, desc, icon: Icon, active }, i) => (
               <div
