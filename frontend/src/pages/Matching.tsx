@@ -61,6 +61,13 @@ const Matching = () => {
         ...result,
         matches
       });
+      if (matches.length > 0) {
+        const existingUser = JSON.parse(localStorage.getItem("maeum-user") || "{}");
+        localStorage.setItem("maeum-user", JSON.stringify({
+          ...existingUser,
+          matched_user_ids: [...(existingUser.matched_user_ids || []), matches[0].user_id]
+        }));
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "매칭 결과 조회 실패";
       setMatchError(message);
