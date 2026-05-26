@@ -31,7 +31,7 @@ export type MatchResult = {
   trait_score: number;
   matched_traits: Trait[];
   rank: number;
-  nickname: number;
+  nickname: string;
 };
 
 export type MatchResponse = {
