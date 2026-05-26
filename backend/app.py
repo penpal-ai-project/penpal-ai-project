@@ -13,6 +13,7 @@ from profile_updater import update_user_profile_analysis
 app = Flask(__name__)
 
 CORS(app, origins=[
+    "http://192.168.126.1:8080",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
     "http://localhost:8081",
