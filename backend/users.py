@@ -58,7 +58,7 @@ def create_user():
             handwriting_style,
             matching_enabled
         )
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?)
     """, (
         nickname,
         gender,

@@ -13,16 +13,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-CORS(app, origins=[
-    "http://10.21.43.13:8080",
-    "http://192.168.126.1:8080",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-    "http://localhost:8081",
-    "http://127.0.0.1:8081",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-])
+CORS(app)
 
 app.register_blueprint(users_bp)
 
@@ -41,18 +32,17 @@ def init_db():
     # 1. 편지 저장용 테이블
     conn.execute("""
         CREATE TABLE IF NOT EXISTS letters (
-            letter_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender_id INTEGER NOT NULL,
-            receiver_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-
-            embedding TEXT,
-            emotion_label TEXT,
-            emotion_score REAL,
-            traits TEXT,
-
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            is_read BOOLEAN DEFAULT 0
+         letter_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        receiver_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        embedding TEXT,
+        emotion_label TEXT,
+        emotion_score REAL,
+        traits TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_read BOOLEAN DEFAULT 0,
+        status TEXT DEFAULT 'pending'
         )
     """)
 
@@ -102,6 +92,14 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    try:
+        conn.execute("""
+        ALTER TABLE letters
+        ADD COLUMN status TEXT DEFAULT 'pending'
+    """)
+    except sqlite3.OperationalError:
+        pass
+    
     conn.commit()
     conn.close()
 
