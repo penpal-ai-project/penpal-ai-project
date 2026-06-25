@@ -9,6 +9,7 @@ from users import users_bp
 from ai_analysis import analyze_text
 from matching_score import rank_matching_candidates
 from profile_updater import update_user_profile_analysis
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -92,6 +93,14 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    try:
+        conn.execute("""
+            ALTER TABLE users
+            ADD COLUMN matching_enabled INTEGER DEFAULT 1
+        """)
+    except sqlite3.OperationalError:
+        pass
 
     conn.commit()
     conn.close()
@@ -467,7 +476,32 @@ def match_users(user_id):
 
         conn.close()
         return jsonify(response), 200
+    
+    target_user_matching_enabled = conn.execute("""
+        SELECT matching_enabled
+        FROM users
+        WHERE user_id = ?
+    """, (user_id,)).fetchone()
 
+    if target_user_matching_enabled is not None and target_user_matching_enabled["matching_enabled"] == 0:
+        response = {
+            "target_user_id": user_id,
+            "target_profile_exists": True,
+            "target_letter_count": target_profile["letter_count"],
+            "matching_base": "user_profiles",
+            "preferred_gender": target_profile["preferred_gender"],
+            "excluded_user_ids": [],
+            "total_user_count": total_user_count,
+            "total_profile_count": total_profile_count,
+            "candidate_count_before_filter": 0,
+            "candidate_count_after_gender_filter": 0,
+            "debug_message": "현재 사용자가 매칭을 원하지 않는 상태입니다.",
+            "matches": []
+        }
+
+        conn.close()
+        return jsonify(response), 200
+    
     # 이미 active 상태로 매칭된 사용자 목록 조회
     matched_rows = conn.execute("""
         SELECT
@@ -538,6 +572,15 @@ def match_users(user_id):
     for candidate in candidate_rows:
         candidate_user_id = candidate["user_id"]
 
+        candidate_matching_enabled = conn.execute("""
+            SELECT matching_enabled
+            FROM users
+            WHERE user_id = ?
+        """, (candidate_user_id,)).fetchone()
+
+        if candidate_matching_enabled and candidate_matching_enabled["matching_enabled"] == 0:
+            continue
+
         if candidate_user_id in already_matched_user_ids:
             continue
 
@@ -599,6 +642,7 @@ def match_users(user_id):
             candidate_profiles=candidate_profiles,
             top_k=3
         )
+        results = results[:1]
 
         nickname_by_user_id = {
             candidate["user_id"]: candidate["nickname"]
@@ -700,6 +744,101 @@ def match_users(user_id):
         "candidate_count_after_gender_filter": candidate_count_after_gender_filter,
         "debug_message": debug_message,
         "matches": results[:1]
+    }), 200
+# active 매칭 수 조회
+def get_active_match_count(user_id):
+    conn = get_db()
+
+    count = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM matches
+        WHERE status = 'active'
+          AND (user_a_id = ? OR user_b_id = ?)
+    """, (user_id, user_id)).fetchone()["count"]
+
+    conn.close()
+    return count
+
+
+# 특정 두 사용자가 이미 active 매칭인지 확인
+def has_active_match(user1_id, user2_id):
+    user_a_id = min(user1_id, user2_id)
+    user_b_id = max(user1_id, user2_id)
+
+    conn = get_db()
+
+    existing_match = conn.execute("""
+        SELECT match_id
+        FROM matches
+        WHERE status = 'active'
+          AND user_a_id = ?
+          AND user_b_id = ?
+    """, (user_a_id, user_b_id)).fetchone()
+
+    conn.close()
+    return existing_match is not None
+
+
+# 매칭 ON/OFF 변경
+@app.route("/users/<int:user_id>/matching-enabled", methods=["PATCH"])
+def update_matching_enabled(user_id):
+    data = request.get_json() or {}
+    matching_enabled = data.get("matching_enabled")
+
+    if matching_enabled is None:
+        return jsonify({
+            "error": "matching_enabled 값이 필요합니다."
+        }), 400
+
+    matching_enabled = 1 if matching_enabled else 0
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE users
+        SET matching_enabled = ?
+        WHERE user_id = ?
+    """, (matching_enabled, user_id))
+
+    conn.commit()
+    updated_count = cursor.rowcount
+    conn.close()
+
+    if updated_count == 0:
+        return jsonify({
+            "error": "해당 사용자를 찾을 수 없습니다."
+        }), 404
+
+    return jsonify({
+        "message": "매칭 설정이 변경되었습니다.",
+        "user_id": user_id,
+        "matching_enabled": bool(matching_enabled)
+    }), 200
+
+
+# 내가 현재 매칭을 원하는 상태인지 조회
+@app.route("/users/<int:user_id>/matching-enabled", methods=["GET"])
+def get_matching_enabled(user_id):
+    conn = get_db()
+
+    user = conn.execute("""
+        SELECT user_id, nickname, matching_enabled
+        FROM users
+        WHERE user_id = ?
+    """, (user_id,)).fetchone()
+
+    conn.close()
+
+    if user is None:
+        return jsonify({
+            "error": "해당 사용자를 찾을 수 없습니다."
+        }), 404
+
+    return jsonify({
+        "user_id": user["user_id"],
+        "nickname": user["nickname"],
+        "matching_enabled": bool(user["matching_enabled"])
     }), 200
 
 #백엔드 서버 외부 접속

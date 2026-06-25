@@ -55,14 +55,16 @@ def create_user():
             nickname,
             gender,
             preferred_gender,
-            handwriting_style
+            handwriting_style,
+            matching_enabled
         )
         VALUES (?, ?, ?, ?)
     """, (
         nickname,
         gender,
         preferred_gender,
-        handwriting_style
+        handwriting_style,
+        1
     ))
 
     new_user_id = cursor.lastrowid
@@ -128,6 +130,7 @@ def get_user(user_id):
             gender,
             preferred_gender,
             handwriting_style,
+            matching_enabled,
             created_at
         FROM users
         WHERE user_id = ?
